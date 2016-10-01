@@ -31,7 +31,7 @@
 ;;     finish.
 ;;
 ;;   Screencasts can be generated in any format understood by
-;;   `imagemagick''s `convert' command. You can even pause the recording
+;;   `imagemagick''s `convert' command.  You can even pause the recording
 ;;   with `F11'!
 ;;
 ;;   If you want to record without a popup frame, use `M-x
@@ -44,7 +44,7 @@
 ;;   manually you need to install that too.
 ;;
 ;;   For the recording, `camcorder.el' uses the following linux utilities.
-;;   If you have these, it should work out of the box. If you use something
+;;   If you have these, it should work out of the box.  If you use something
 ;;   else, you should still be able to configure `camcorder.el' work.
 ;;
 ;;   • recordmydesktop
@@ -89,8 +89,8 @@ See `make-frame'."
   '("recordmydesktop" " --fps 20 --no-sound --windowid " window-id " -o " file)
   "Command used to start the recording.
 This is a list where all elements are `concat'ed together (with no
-separators) and passed to `shell-command'. Each element must be a
-string or a symbol. The first string should be just the name of a
+separators) and passed to `shell-command'.  Each element must be a
+string or a symbol.  The first string should be just the name of a
 command (no args), so that we can identify it and SIGTERM it.
 
 Options you may want to configure are \"--fps 10\" and \"--no-sound\".
@@ -302,7 +302,7 @@ Meant for use in `delete-frame-functions'."
 
 (defun -start-recording ()
   "Start recording process.
-Used internally. You should call `camcorder-record' or
+Used internally.  You should call `camcorder-record' or
 `camcorder-mode' instead."
   (if (-is-running-p)
       (error "Recording process already running %s" -process)
