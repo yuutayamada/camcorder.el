@@ -285,7 +285,7 @@ You can customize the size and properties of this frame with
 
 ;;; Internal
 (defun camcorder--stop-recording-if-frame-deleted (frame)
-  "Stop recording if FRAME matches `camcorder-recording-frame'.
+  "Stop recording if FRAME match `camcorder-recording-frame'.
 Meant for use in `delete-frame-functions'."
   (when (equal frame camcorder-recording-frame)
     (camcorder-stop)))
