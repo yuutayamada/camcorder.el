@@ -6,7 +6,7 @@
 ;; URL: http://github.com/Bruce-Connor/camcorder.el
 ;; Keywords: multimedia screencast
 ;; Version: 0.2
-;; Package-Requires: ((emacs "24") (names "20150000") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -68,24 +68,19 @@
 
 (require 'cl-lib)
 
-;;;###autoload
-(define-namespace camcorder-
-:package camcorder
-:version "0.1"
-:group emacs
-
 
 ;;; Variables
-(defcustom frame-parameters
+(defcustom camcorder-frame-parameters
   '((name . "camcorder.el Recording - F12 to Stop - F11 to Pause/Resume")
     (height . 20)
     (width . 65)
     (top .  80))
   "Parameters used on the recording frame.
 See `make-frame'."
-  :type '(alist :key-type symbol :value-type sexp))
+  :type '(alist :key-type symbol :value-type sexp)
+  :group 'camcorder)
 
-(defcustom recording-command
+(defcustom camcorder-recording-command
   '("recordmydesktop" " --fps 20 --no-sound --windowid " window-id " -o " file)
   "Command used to start the recording.
 This is a list where all elements are `concat'ed together (with no
@@ -107,9 +102,10 @@ Meaning of symbols:
                  (const :tag "window-id parameter of the recording frame" window-id)
                  (const :tag "Output file" file)
                  (const :tag "Temporary intermediate file" temp-file)
-                 (const :tag "Temporary intermediate dir" temp-dir)))))
+                 (const :tag "Temporary intermediate dir" temp-dir))))
+  :group 'camcorder)
 
-(defcustom gif-conversion-commands
+(defcustom camcorder-gif-conversion-commands
   '(("ffmpeg"
      "ffmpeg -i " input-file " -pix_fmt rgb24 -r 30 " gif-file)
     ("mplayer + imagemagick"
@@ -131,7 +127,7 @@ This is a list where each element has the form
 
 DESCRIPTOR is a human-readable string, describing the ogvcommand.
 STRING-OR-SYMBOL's are all concated together (with no separators)
-and passed to `shell-command'. Strings are used literally, and
+and passed to `shell-command'.  Strings are used literally, and
 symbols are converted according to the following meanings:
 
    'file is the output file.
@@ -151,24 +147,28 @@ completely different conversion commands, if you know any."
                               (const :tag "Input file" input-file)
                               (const :tag "Temporary intermediate gif file" temp-gif-file)
                               (const :tag "Temporary intermediate file" temp-file)
-                              (const :tag "Temporary intermediate dir" temp-dir)))))
+                              (const :tag "Temporary intermediate dir" temp-dir))))
+  :group 'camcorder)
 
-(defcustom window-id-offset 0
+(defcustom camcorder-window-id-offset 0
   "Difference between Emacs' and X's window-id.
 This variable should be mostly irrelevant; it was more useful
 when camcorder.el relied on `window-id' instead of
 `outer-window-id'."
-  :type 'integer)
+  :type 'integer
+  :group 'camcorder)
 
-(defcustom output-directory (expand-file-name "~/Videos")
+(defcustom camcorder-output-directory (expand-file-name "~/Videos")
   "Directory where screencasts are saved."
-  :type 'directory)
+  :type 'directory
+  :group 'camcorder)
 
-(defcustom gif-output-directory output-directory
+(defcustom camcorder-gif-output-directory camcorder-output-directory
   "Directory where screencasts are saved."
-  :type 'directory)
+  :type 'directory
+  :group 'camcorder)
 
-(defvar temp-dir
+(defvar camcorder-temp-dir
   (if (fboundp 'temp-directory)
       (temp-directory)
     (if (boundp 'temporary-file-directory)
@@ -176,107 +176,107 @@ when camcorder.el relied on `window-id' instead of
       "/tmp/"))
   "Directory to store intermediate conversion files.")
 
-(defvar recording-frame nil
+(defvar camcorder-recording-frame nil
   "Frame created for recording.
 Used by `camcorder--start-recording' to decide on the dimensions.")
 
-(defvar -process nil "Recording process PID.")
+(defvar camcorder--process nil "Recording process PID.")
 
-(defvar -output-file-name nil
+(defvar camcorder--output-file-name nil
   "Bound to the filename chosen by the user.")
 
-(defvar -gif-file-name nil
+(defvar camcorder--gif-file-name nil
   "Gif output file.")
 
 
 ;;; User Functions
-(defun stop () "Stop recording." (interactive) (mode -1))
+(defun camcorder-stop () "Stop recording." (interactive) (camcorder-mode -1))
 
 :autoload
-(defun record ()
+(defun camcorder-record ()
   "Open a new Emacs frame and start recording.
 You can customize the size and properties of this frame with
 `camcorder-frame-parameters'."
   (interactive)
   (select-frame
-   (if (frame-live-p recording-frame)
-       recording-frame
-     (setq recording-frame
-           (make-frame frame-parameters))))
-  (mode))
+   (if (frame-live-p camcorder-recording-frame)
+       camcorder-recording-frame
+     (setq camcorder-recording-frame
+           (make-frame camcorder-frame-parameters))))
+  (camcorder-mode))
 
 :autoload
-(defalias 'camcorder-start #'record)
+(defalias 'camcorder-start #'camcorder-record)
 
 :autoload
-(define-minor-mode mode
+(define-minor-mode camcorder-mode
   nil nil "sc"
   '(([f12] . camcorder-stop)
     ([f11] . camcorder-pause))
   :global t
-  (if mode
+  (if camcorder-mode
       (progn
-        (setq -output-file-name
+        (setq camcorder--output-file-name
               (expand-file-name
                (read-file-name "Output file (out.ogv): "
-                               (file-name-as-directory output-directory)
+                               (file-name-as-directory camcorder-output-directory)
                                "out.ogv")
-               output-directory))
-        (-start-recording)
-        (add-hook 'delete-frame-functions #'-stop-recording-if-frame-deleted))
-    (remove-hook 'delete-frame-functions #'-stop-recording-if-frame-deleted)
-    (when (-is-running-p)
-      (signal-process -process 'SIGTERM))
-    (setq -process nil)
-    (when (frame-live-p recording-frame)
-      (delete-frame recording-frame))
-    (setq recording-frame nil)
+               camcorder-output-directory))
+        (camcorder--start-recording)
+        (add-hook 'delete-frame-functions #'camcorder--stop-recording-if-frame-deleted))
+    (remove-hook 'delete-frame-functions #'camcorder--stop-recording-if-frame-deleted)
+    (when (camcorder--is-running-p)
+      (signal-process camcorder--process 'SIGTERM))
+    (setq camcorder--process nil)
+    (when (frame-live-p camcorder-recording-frame)
+      (delete-frame camcorder-recording-frame))
+    (setq camcorder-recording-frame nil)
     (pop-to-buffer "*camcorder output*")
     (message "OGV file saved. Use `M-x %s' to convert it to a gif."
-             #'convert-to-gif)))
+             #'camcorder-convert-to-gif)))
 
-(defun -clear-message ()
+(defun camcorder--clear-message ()
   (message " "))
 
-(add-hook 'camcorder-mode-hook #'-clear-message)
+(add-hook 'camcorder-mode-hook #'camcorder--clear-message)
 
-(defun -is-running-p ()
+(defun camcorder--is-running-p ()
   "Non-nil if the recording process is running."
-  (and (integerp -process)
-       (memq -process (list-system-processes))))
+  (and (integerp camcorder--process)
+       (memq camcorder--process (list-system-processes))))
 
 (defun pause ()
   "Pause or resume recording."
   (interactive)
-  (when (-is-running-p)
-    (signal-process -process 'SIGUSR1)))
+  (when (camcorder--is-running-p)
+    (signal-process camcorder--process 'SIGUSR1)))
 
-(defvar -input-file nil "")
+(defvar camcorder--input-file nil)
 
-(defun convert-to-gif ()
+(defun camcorder-convert-to-gif ()
   "Convert the ogv file to gif."
   (interactive)
-  (let* ((-input-file
+  (let* ((camcorder--input-file
           (expand-file-name
            (read-file-name "File to convert: "
-                           (or (file-name-directory (or -output-file-name ""))
-                               output-directory)
+                           (or (file-name-directory (or camcorder--output-file-name ""))
+                               camcorder-output-directory)
                            nil t
-                           (file-name-nondirectory (or -output-file-name "")))))
-         (-file-base (file-name-base (file-name-nondirectory -input-file)))
-         (-gif-file-name
+                           (file-name-nondirectory (or camcorder--output-file-name "")))))
+         (camcorder--file-base (file-name-base (file-name-nondirectory camcorder--input-file)))
+         (camcorder--gif-file-name
           (expand-file-name
            (read-file-name "Output gif: "
-                           gif-output-directory nil nil
-                           (concat -file-base ".gif"))
-           output-directory))
+                           camcorder-gif-output-directory nil nil
+                           (concat camcorder--file-base ".gif"))
+           camcorder-output-directory))
          (command
           (cdr (assoc
                 (completing-read "Command to use (TAB to see options): "
-                                 (mapcar #'car gif-conversion-commands)
+                                 (mapcar #'car camcorder-gif-conversion-commands)
                                  nil t)
-                gif-conversion-commands))))
-    (setq command (mapconcat #'-convert-args command ""))
+                camcorder-gif-conversion-commands))))
+    (setq command (mapconcat #'camcorder--convert-args command ""))
     (when (y-or-n-p (format "Execute the following command? %s" command))
       (shell-command (format "(%s) &" command)
                      "*camcorder output*")
@@ -284,13 +284,13 @@ You can customize the size and properties of this frame with
 
 
 ;;; Internal
-(defun -stop-recording-if-frame-deleted (frame)
+(defun camcorder--stop-recording-if-frame-deleted (frame)
   "Stop recording if FRAME matches `camcorder-recording-frame'.
 Meant for use in `delete-frame-functions'."
   (when (equal frame camcorder-recording-frame)
-    (stop)))
+    (camcorder-stop)))
 
-(defun -announce-start-recording ()
+(defun camcorder--announce-start-recording ()
   "Countdown from 3."
   (message "Will start recording in 3..")
   (sleep-for 0.7)
@@ -300,60 +300,59 @@ Meant for use in `delete-frame-functions'."
   (sleep-for 0.7)
   (message nil))
 
-(defun -start-recording ()
+(defun camcorder--start-recording ()
   "Start recording process.
 Used internally.  You should call `camcorder-record' or
 `camcorder-mode' instead."
-  (if (-is-running-p)
-      (error "Recording process already running %s" -process)
-    (setq -process nil)
-    (-announce-start-recording)
+  (if (camcorder--is-running-p)
+      (error "Recording process already running %s" camcorder--process)
+    (setq camcorder--process nil)
+    (camcorder--announce-start-recording)
     (let ((display-buffer-overriding-action
            (list (lambda (_x _y) t))))
       (shell-command
        (format "(%s) &"
-               (mapconcat #'-convert-args recording-command ""))
+               (mapconcat #'camcorder--convert-args camcorder-recording-command ""))
        "*camcorder output*"))
-    (while (null -process)
+    (while (null camcorder--process)
       (sleep-for 0.1)
-      (let* ((name (car recording-command))
+      (let* ((name (car camcorder-recording-command))
              (process
               (car
                (cl-member-if
                 (lambda (x) (string= name (cdr (assoc 'comm (process-attributes x)))))
                 (list-system-processes)))))
-        (setq -process process)))))
+        (setq camcorder--process process)))))
 
-(defun -convert-args (arg)
+(defun camcorder--convert-args (arg)
   "Convert recorder argument ARG into values.
 Used on `camcorder-recording-command'."
   (cond
    ((stringp arg) arg)
-   ((eq arg 'file) -output-file-name)
-   ((eq arg 'input-file) -input-file)
-   ((eq arg 'gif-file)   -gif-file-name)
+   ((eq arg 'file) camcorder--output-file-name)
+   ((eq arg 'input-file) camcorder--input-file)
+   ((eq arg 'gif-file)   camcorder--gif-file-name)
    ((eq arg 'window-id)
-    (-frame-window-id
-     (if (frame-live-p recording-frame)
-         recording-frame
+    (camcorder--frame-window-id
+     (if (frame-live-p camcorder-recording-frame)
+         camcorder-recording-frame
        (selected-frame))))
    ((eq arg 'temp-dir)
-    (expand-file-name "camcorder/" temp-dir))
+    (expand-file-name "camcorder/" camcorder-temp-dir))
    ((eq arg 'temp-file)
-    (expand-file-name "camcorder.ogv" temp-dir))
+    (expand-file-name "camcorder.ogv" camcorder-temp-dir))
    ((eq arg 'temp-gif-file)
-    (expand-file-name "camcorder.gif" temp-dir))
+    (expand-file-name "camcorder.gif" camcorder-temp-dir))
    (t (error "Don't know this argument: %s" arg))))
 
-(defun -frame-window-id (frame)
+(defun camcorder--frame-window-id (frame)
   "Return FRAME's window-id in hex.
 Increments the actual value by `window-id-offset'."
   (format "0x%x"
           (+ (string-to-number
               (frame-parameter frame 'outer-window-id))
-             window-id-offset)))
+             camcorder-window-id-offset)))
 
-)
 
 (provide 'camcorder)
 ;;; camcorder.el ends here
