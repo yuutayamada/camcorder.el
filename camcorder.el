@@ -81,7 +81,7 @@ See `make-frame'."
   :group 'camcorder)
 
 (defcustom camcorder-recording-command
-  '("recordmydesktop" " --fps 20 --no-sound --windowid " window-id " -o " file)
+  '("recordmydesktop" " --fps 20 --no-sound --no-frame --windowid " window-id " -o " file)
   "Command used to start the recording.
 This is a list where all elements are `concat'ed together (with no
 separators) and passed to `shell-command'.  Each element must be a
